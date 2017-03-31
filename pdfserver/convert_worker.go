@@ -1,14 +1,14 @@
 package pdfserver
 
 import (
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -22,12 +22,12 @@ type ConversionFinishedResponse struct {
 	UploadURLs []string `json:"upload_urls"`
 }
 
-func ConvertWorker (tasks chan Task) () {
+func ConvertWorker(tasks chan Task) {
 	process := func(task Task) (int, error) {
 		pdf_url := task.url
 		id := task.id
 
-		os.MkdirAll(config.TempPath + "/" + id, 0700)
+		os.MkdirAll(config.TempPath+"/"+id, 0700)
 
 		file, err := os.Create(config.TempPath + "/" + id + "/pdf.pdf")
 		if err != nil {
@@ -74,14 +74,14 @@ func ConvertWorker (tasks chan Task) () {
 			return pages, fmt.Errorf("PDF has too many pages (%d)", pages)
 		}
 
-		cmd := exec.Command("pdf2svg", config.TempPath + "/" + id + "/pdf.pdf", config.TempPath + "/" + id + "/page%d.svg", "all")
+		cmd := exec.Command("pdf2svg", config.TempPath+"/"+id+"/pdf.pdf", config.TempPath+"/"+id+"/page%d.svg", "all")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Run()
 
 		for page := 0; page < pages; page++ {
-			if _, err := os.Stat(fmt.Sprintf(config.TempPath + "/%s/page%d.svg", id, page + 1)); os.IsNotExist(err) {
-				return pages, fmt.Errorf("Page %d failed to convert", page + 1)
+			if _, err := os.Stat(fmt.Sprintf(config.TempPath+"/%s/page%d.svg", id, page+1)); os.IsNotExist(err) {
+				return pages, fmt.Errorf("Page %d failed to convert", page+1)
 			}
 		}
 
@@ -144,9 +144,9 @@ func ConvertWorker (tasks chan Task) () {
 					uploadDone := make(chan bool)
 					uploadErrs := make(chan error)
 
-					svg, err := os.Open(fmt.Sprintf(config.TempPath + "/%s/page%d.svg", task.id, page + 1))
+					svg, err := os.Open(fmt.Sprintf(config.TempPath+"/%s/page%d.svg", task.id, page+1))
 					if err != nil {
-						log.Printf("Failed to open page %d: %s", page + 1, err.Error())
+						log.Printf("Failed to open page %d: %s", page+1, err.Error())
 						done <- false
 						return
 					}
@@ -163,11 +163,11 @@ func ConvertWorker (tasks chan Task) () {
 					writer.Close()
 
 					select {
-						case err := <-uploadErrs:
-							log.Printf("Page %d (PDF %s) failed to upload: %s", page, task.id, err.Error())
-							done <- false
-						case <-uploadDone:
-							done <- true
+					case err := <-uploadErrs:
+						log.Printf("Page %d (PDF %s) failed to upload: %s", page, task.id, err.Error())
+						done <- false
+					case <-uploadDone:
+						done <- true
 					}
 				})(page)
 			}
